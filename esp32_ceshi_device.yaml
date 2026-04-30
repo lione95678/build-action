@@ -1,0 +1,72 @@
+esphome:
+  name: esp32-cam-ceshi
+  friendly_name: esp32-cam-ceshi
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "sSJumjfsP1j5dVzurb8RRVOTlSzZmG1EcA+pfUDqEZw="
+
+ota:
+  - platform: esphome
+    password: "d863fb3a24624dddcf2636ea52abdd4a"
+
+
+
+
+wifi:
+  ssid: "Netgear"
+  password: "5m*cEx&4jGQk"
+
+  manual_ip:
+    static_ip: 165.201.1.201
+    gateway: 165.201.1.1
+    subnet: 255.255.255.0
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-Keting-Dongdongban"
+    password: "KGA686dDEjuD"
+
+captive_portal:
+
+esp32_camera_web_server:
+  - port: 8080
+    mode: stream
+  - port: 8081
+    mode: snapshot
+
+i2c:
+  - id: camera_i2c
+    sda: GPIO26
+    scl: GPIO27
+
+psram:
+  mode: quad
+  speed: 80MHz
+
+esp32_camera:
+  name: "My Camera"
+  external_clock:
+    pin: GPIO0
+    frequency: 20MHz
+  i2c_id: camera_i2c
+  data_pins: [GPIO5, GPIO18, GPIO19, GPIO21, GPIO36, GPIO39, GPIO34, GPIO35]
+  vsync_pin: GPIO25
+  href_pin: GPIO23
+  pixel_clock_pin: GPIO22
+  resolution: 640x480
+  jpeg_quality: 10
+  power_down_pin: GPIO32
+  vertical_flip: true
+
+  # Image settings
+
+    
