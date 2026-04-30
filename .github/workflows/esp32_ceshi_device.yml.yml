@@ -1,0 +1,105 @@
+name: esp32_ceshi_device
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  pull_request:
+# 下面这段是定时操作，0 5 * * 1 表示在每周一（1）的 5 点 0 分（UTC 时间）自动运行此工作流，用于执行例行检查或构建。
+  # schedule:
+  #   - cron: "0 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  # yamllint disable-line rule:line-length
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TEST_RELEASE_SUMMARY: |-
+    Test "release" summary
+    * Multiple lines
+
+jobs:
+  build:
+    name: esphome:${{ matrix.esphome-version }} / ${{ matrix.manifest }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        esphome-version:
+          - stable
+          - beta
+          - dev
+        manifest:
+          - complete
+          - partial
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run action
+        uses: ./
+        id: esphome-build
+        with:
+          yaml-file: esp32_ceshi_device.yaml
+          version: ${{ matrix.esphome-version }}
+          release-summary: ${{ env.TEST_RELEASE_SUMMARY }}
+          release-url: "https://github.com/esphome/build-action"
+          complete-manifest: ${{ matrix.manifest == 'complete' }}
+      - name: Write version to file
+        run: echo ${{ steps.esphome-build.outputs.version }} > ${{ steps.esphome-build.outputs.name }}/version
+      - name: Upload ESPHome binary
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
+          path: ${{ steps.esphome-build.outputs.name }}
+
+
+# 以下为验证任务
+  # verify:
+  #   name: Verify output files for esphome:${{ matrix.esphome-version }} with ${{ matrix.manifest }} manifest
+  #   runs-on: ${{ matrix.os }}
+  #   needs: build
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       esphome-version:
+  #         - stable
+  #         - beta
+  #         - dev
+  #       manifest:
+  #         - complete
+  #         - partial
+  #       os:
+  #         - ubuntu-24.04
+  #         - ubuntu-24.04-arm
+
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  #     - name: Download files
+  #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+  #       with:
+  #         name: build-output-files-${{ matrix.esphome-version }}-${{ matrix.manifest }}-${{ matrix.os }}
+
+  #     - name: List files
+  #       run: |-
+  #         ls -al
+  #         tree
+
+  #     - name: Validate json file matches ${{ matrix.manifest }} manifest-template.json
+  #       run: |
+  #         jq -n \
+  #           --arg ota_md5 "$(md5sum test-esp32.ota.bin | head -c 32)" \
+  #           --arg ota_sha256 "$(sha256sum test-esp32.ota.bin | head -c 64)" \
+  #           --arg factory_md5 "$(md5sum test-esp32.factory.bin | head -c 32)" \
+  #           --arg factory_sha256 "$(sha256sum test-esp32.factory.bin | head -c 64)" \
+  #           -f tests/${{ matrix.manifest }}-manifest-template.json > /tmp/manifest.json
+  #         diff <(jq --sort-keys . /tmp/manifest.json) <(jq --sort-keys . manifest.json)
